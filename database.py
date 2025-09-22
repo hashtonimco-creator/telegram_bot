@@ -302,5 +302,9 @@ def get_all_publishers_for_admin():
     conn.close()
     return publishers
 
+# Alias for backward compatibility
+def init_db():
+    return init_database()
+
 # Initialize the database and tables when the module is first imported
 init_database()
