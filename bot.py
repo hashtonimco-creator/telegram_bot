@@ -1133,28 +1133,24 @@ def handle_admin_options(message):
 
 
 def process_add_admin_id(message):
+    user_id = message.from_user.id
     try:
-        new_admin_id = int(message.text)
-        # You can't add yourself again
-        if new_admin_id == SUPER_ADMIN_ID:
-            bot.send_message(message.from_user.id, 'شما در حال حاضر سوپر ادمین هستید.', reply_markup=create_admin_panel())
-            return
-
-        # Try to get user info to get their username
-        try:
-            chat_info = bot.get_chat(new_admin_id)
-            new_admin_username = chat_info.username
-        except Exception:
-            new_admin_username = None
-
-        if database.add_admin(new_admin_id, new_admin_username, message.from_user.id):
-            bot.send_message(message.from_user.id, f'✅ کاربر {new_admin_id} با موفقیت به لیست ادمین‌ها اضافه شد.', reply_markup=create_admin_panel())
-            bot.send_message(new_admin_id, 'شما توسط سوپر ادمین به عنوان ادمین جدید انتخاب شدید. برای شروع /start را بزنید.')
+        new_admin_id = int(message.text.strip())
+        
+        # Try to add admin to database
+        if database.add_admin(new_admin_id, f"admin_{new_admin_id}"):
+            bot.send_message(user_id, f'✅ ادمین جدید با موفقیت اضافه شد:\n🆔 شناسه: {new_admin_id}', reply_markup=create_admin_panel())
+            
+            # Try to send notification to new admin
+            try:
+                bot.send_message(new_admin_id, 'شما توسط سوپر ادمین به عنوان ادمین جدید انتخاب شدید. برای شروع /start را بزنید.')
+            except Exception as e:
+                print(f"Could not send notification to new admin {new_admin_id}: {e}")
+                bot.send_message(user_id, f'⚠️ ادمین اضافه شد اما نتوانستیم پیام اطلاع‌رسانی ارسال کنیم. احتمالاً کاربر ربات را start نکرده است.')
         else:
-            bot.send_message(message.from_user.id, f'⚠️ کاربر {new_admin_id} در حال حاضر ادمین می‌باشد.', reply_markup=create_admin_panel())
-
+            bot.send_message(user_id, '❌ خطا در افزودن ادمین. ممکن است این شناسه قبلاً ثبت شده باشد.', reply_markup=create_admin_panel())
     except ValueError:
-        bot.send_message(message.from_user.id, '❌ ورودی نامعتبر است. لطفاً فقط شناسه کاربری عددی را وارد کنید.', reply_markup=create_admin_panel())
+        bot.send_message(user_id, '❌ لطفاً یک شناسه عددی معتبر وارد کنید.', reply_markup=create_admin_panel())
 
 def process_remove_admin_id(message):
     try:
@@ -1176,8 +1172,20 @@ def process_remove_admin_id(message):
 # --- MAIN EXECUTION ---
 if __name__ == '__main__':
     print("Bot is starting...")
-    database.init_database() # Ensure database and tables exist
-    # To add the super admin to the admins table automatically on start
+    database.init_db()
+    
+    # Add the super admin to the admins table automatically on start
     if not database.is_admin(SUPER_ADMIN_ID):
-         database.add_admin(SUPER_ADMIN_ID, 'superadmin', SUPER_ADMIN_ID)
-    bot.polling(none_stop=True)
+        database.add_admin(SUPER_ADMIN_ID, 'superadmin')
+    
+    # Run bot with error handling and auto-restart
+    while True:
+        try:
+            print("Starting bot polling...")
+            bot.polling(none_stop=True, timeout=60)
+        except Exception as e:
+            print(f"Bot polling error: {e}")
+            print("Restarting bot in 10 seconds...")
+            import time
+            time.sleep(10)
+            continue

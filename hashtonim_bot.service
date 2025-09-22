@@ -1,0 +1,15 @@
+[Unit]
+Description=Hashtonim Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=hashtonim
+WorkingDirectory=/home/hashtonim/telegram_bot
+Environment=PATH=/home/hashtonim/telegram_bot/.venv/bin
+ExecStart=/home/hashtonim/telegram_bot/.venv/bin/python bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
